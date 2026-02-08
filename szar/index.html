@@ -83,7 +83,10 @@
 <body>
 <div class="container">
   <a id="download-button" class="button" href="#">Download Latest JAR</a>
-
+  <a id="download-button" class="button" href="#">Download Latest</a>
+<p id="all-downloads" style="margin-top:4px; opacity:0.9;">
+  All versions: loading…
+</p>
   <div id="readme">
     <p>Loading README...</p>
   </div>
@@ -98,13 +101,16 @@ const REPO  = "szar";      // change to repo name
 async function fetchLatestJar() {
   const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`);
   const data = await res.json();
+
   const jar = data.assets.find(a => a.name.endsWith('.jar'));
-  if(jar) {
-    document.getElementById('download-button').href = jar.browser_download_url;
-    document.getElementById('download-button').textContent = `Download ${jar.name}`;
-  } else {
+  if (!jar) {
     document.getElementById('download-button').style.display = 'none';
+    return;
   }
+
+  const btn = document.getElementById('download-button');
+  btn.href = jar.browser_download_url;
+  btn.textContent = `Download Latest (${jar.download_count} downloads)`;
 }
 
 async function fetchReadme() {
@@ -129,8 +135,25 @@ async function fetchReadme() {
     document.getElementById('readme').innerHTML = '<p>No README found.</p>';
   }
 }
+async function fetchTotalJarDownloads() {
+  const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases`);
+  const releases = await res.json();
 
+  let total = 0;
+
+  for (const release of releases) {
+    for (const asset of release.assets) {
+      if (asset.name.endsWith(".jar")) {
+        total += asset.download_count;
+      }
+    }
+  }
+
+  document.getElementById("all-downloads").textContent =
+    `All versions: ${total} downloads`;
+                                              }
 fetchLatestJar();
+fetchTotalJarDownloads();
 fetchReadme();
 </script>
 </body>
