@@ -142,16 +142,24 @@ async function fetchLatestJar() {
 }
 
 async function fetchTotalJarDownloads() {
-  const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases`);
-  const releases = await res.json();
-
   let total = 0;
-  for (const release of releases) {
-    for (const asset of release.assets) {
-      if (asset.name.endsWith(".jar")) {
-        total += asset.download_count;
+  let page = 1;
+
+  while (true) {
+    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=100&page=${page}`);
+    const releases = await res.json();
+
+    if (!releases.length) break;
+
+    for (const release of releases) {
+      for (const asset of release.assets) {
+        if (asset.name.endsWith(".jar")) {
+          total += asset.download_count;
+        }
       }
     }
+
+    page++;
   }
 
   document.getElementById("all-versions").textContent =
