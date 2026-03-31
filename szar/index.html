@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/TGGamesYT/szar/refs/heads/main/src/main/resources/assets/szar/icon.png">
+
+<!-- ✅ Updated icon URL -->
+<link rel="icon" type="image/png" href="https://gitea.tggamesyt.dev/tggamesyt/szar/raw/branch/main/src/main/resources/assets/szar/icon.png">
+
 <title>Minecraft Mod Viewer</title>
 
 <style>
@@ -57,7 +60,6 @@
 
   #download-stats {
     font-size: 0.9rem;
-    color: #f5f5dc;
     margin-top: 4px;
     opacity: 0.9;
   }
@@ -65,7 +67,6 @@
   #readme {
     font-size: 1rem;
     line-height: 1.6;
-    color: #f5f5dc;
     margin-top: 20px;
   }
 
@@ -73,33 +74,13 @@
   #readme h2,
   #readme h3 {
     color: #f2d16b;
-    text-shadow: 1px 1px #000;
-    margin-top: 1em;
   }
 
-  #readme b { font-weight: bold; }
-  #readme i { font-style: italic; }
-
-  #readme code {
-    background: rgba(255,255,255,0.1);
-    padding: 2px 5px;
-    border-radius: 3px;
-    font-family: 'Minecraft-Seven', monospace;
-  }
-
-  #readme a {
-    color: #a0e0ff;
-    text-decoration: underline;
-  }
-
-  /* ✅ Image / GIF support */
   #readme img {
     max-width: 100%;
-    height: auto;
     display: block;
     margin: 12px auto;
     border-radius: 6px;
-    image-rendering: auto;
   }
 </style>
 </head>
@@ -122,13 +103,18 @@
 // ====== CONFIG ======
 const OWNER = "tggamesyt";
 const REPO  = "szar";
+const BASE  = "https://gitea.tggamesyt.dev/api/v1";
 // ====================
 
 async function fetchLatestJar() {
-  const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`);
-  const data = await res.json();
+  const res = await fetch(`${BASE}/repos/${OWNER}/${REPO}/releases`);
+  const releases = await res.json();
 
-  const jar = data.assets.find(a => a.name.endsWith('.jar'));
+  if (!releases.length) return;
+
+  const latest = releases[0];
+  const jar = latest.assets.find(a => a.name.endsWith('.jar'));
+
   if (!jar) {
     document.getElementById('download-button').style.display = 'none';
     return;
@@ -143,24 +129,17 @@ async function fetchLatestJar() {
 }
 
 async function fetchTotalJarDownloads() {
+  const res = await fetch(`${BASE}/repos/${OWNER}/${REPO}/releases`);
+  const releases = await res.json();
+
   let total = 0;
-  let page = 1;
 
-  while (true) {
-    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=100&page=${page}`);
-    const releases = await res.json();
-
-    if (!releases.length) break;
-
-    for (const release of releases) {
-      for (const asset of release.assets) {
-        if (asset.name.endsWith(".jar")) {
-          total += asset.download_count;
-        }
+  for (const release of releases) {
+    for (const asset of release.assets) {
+      if (asset.name.endsWith(".jar")) {
+        total += asset.download_count;
       }
     }
-
-    page++;
   }
 
   document.getElementById("all-versions").textContent =
@@ -168,7 +147,7 @@ async function fetchTotalJarDownloads() {
 }
 
 async function fetchReadme() {
-  const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/readme`);
+  const res = await fetch(`${BASE}/repos/${OWNER}/${REPO}/contents/README.md`);
   const data = await res.json();
 
   if (!data.content) {
@@ -177,38 +156,24 @@ async function fetchReadme() {
   }
 
   const decoded = atob(data.content.replace(/\n/g, ''));
-  const utf8text = decodeURIComponent(escape(decoded));
 
-  const html = utf8text
-    /* Images: ![alt](url) */
+  const html = decoded
     .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim,
       '<img src="$2" alt="$1">')
-
-    /* Headers */
     .replace(/^### (.+)$/gim, '<h3>$1</h3>')
     .replace(/^## (.+)$/gim, '<h2>$1</h2>')
     .replace(/^# (.+)$/gim, '<h1>$1</h1>')
-
-    /* Bold */
     .replace(/\*\*(.+?)\*\*/gim, '<b>$1</b>')
-
-    /* Italic (won’t break bold) */
     .replace(/(^|[^*])\*(?!\*)(.+?)\*(?!\*)/gim, '$1<i>$2</i>')
-
-    /* Inline code */
     .replace(/`([^`]+)`/gim, '<code>$1</code>')
-
-    /* Links */
     .replace(/\[([^\]]+)\]\(([^)]+)\)/gim,
-      '<a href="$2" target="_blank" rel="noopener">$1</a>')
-
-    /* Line breaks */
+      '<a href="$2" target="_blank">$1</a>')
     .replace(/\n/g, '<br>');
 
   document.getElementById('readme').innerHTML = html;
 }
 
-// Fetch everything
+// Run
 fetchLatestJar();
 fetchTotalJarDownloads();
 fetchReadme();
