@@ -4,10 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- ✅ Updated icon URL -->
 <link rel="icon" type="image/png" href="https://gitea.tggamesyt.dev/tggamesyt/szar/raw/branch/main/src/main/resources/assets/szar/icon.png">
 
-<title>Minecraft Mod Viewer</title>
+<title>Szar showcase</title>
 
 <style>
   @font-face {
@@ -58,11 +57,7 @@
     transform: translateY(-2px);
   }
 
-  #download-stats {
-    font-size: 0.9rem;
-    margin-top: 4px;
-    opacity: 0.9;
-  }
+
 
   #readme {
     font-size: 1rem;
@@ -89,93 +84,89 @@
 <div class="container">
   <a id="download-button" class="button" href="#">Loading...</a>
 
-  <div id="download-stats">
-    <span id="this-version">This version: loading…</span><br>
-    <span id="all-versions">All versions: loading…</span>
-  </div>
-
   <div id="readme">
     <p>Loading README...</p>
   </div>
 </div>
 
 <script>
-// ====== CONFIG ======
+const BASE = "https://gitea.tggamesyt.dev/api/v1";
 const OWNER = "tggamesyt";
-const REPO  = "szar";
-const BASE  = "https://gitea.tggamesyt.dev/api/v1/";
-// ====================
+const REPO = "szar";
+const CORS_PROXY = "https://corsproxy.io/?url=";
 
 async function fetchLatestJar() {
-  const res = await fetch(`${BASE}/repos/${OWNER}/${REPO}/releases`);
-  const releases = await res.json();
-
-  if (!releases.length) return;
-
-  const latest = releases[0];
-  const jar = latest.assets.find(a => a.name.endsWith('.jar'));
-
-  if (!jar) {
-    document.getElementById('download-button').style.display = 'none';
-    return;
-  }
-
-  const btn = document.getElementById('download-button');
-  btn.href = jar.browser_download_url;
-  btn.textContent = jar.name;
-
-  document.getElementById('this-version').textContent =
-    `This version: ${jar.download_count} downloads`;
-}
-
-async function fetchTotalJarDownloads() {
-  const res = await fetch(`${BASE}/repos/${OWNER}/${REPO}/releases`);
-  const releases = await res.json();
-
-  let total = 0;
-
-  for (const release of releases) {
-    for (const asset of release.assets) {
-      if (asset.name.endsWith(".jar")) {
-        total += asset.download_count;
-      }
+  try {
+    const url = `${BASE}/repos/${OWNER}/${REPO}/releases`;
+    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
+    const res = await fetch(proxyUrl);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     }
-  }
+    
+    const releases = await res.json();
 
-  document.getElementById("all-versions").textContent =
-    `All versions: ${total} downloads`;
+    if (!Array.isArray(releases) || releases.length === 0) {
+      console.log('No releases found');
+      return;
+    }
+
+    const latest = releases[0];
+    const jar = latest.assets?.find(asset => asset.name.endsWith('.jar'));
+
+    if (!jar) {
+      console.log('No JAR file found in latest release');
+      document.getElementById('download-button').style.display = 'none';
+      return;
+    }
+
+    const downloadUrl = jar.browser_download_url;
+    if (!downloadUrl) {
+      console.error('No download URL in release:', jar);
+      return;
+    }
+
+    const button = document.getElementById('download-button');
+    button.href = downloadUrl;
+    button.textContent = jar.name;
+  } catch (error) {
+    console.error('Error fetching latest jar:', error);
+    document.getElementById('download-button').textContent = 'Error loading download';
+  }
 }
 
 async function fetchReadme() {
-  const res = await fetch(`${BASE}/repos/${OWNER}/${REPO}/contents/README.md`);
-  const data = await res.json();
+  try {
+    const rawUrl = `https://gitea.tggamesyt.dev/tggamesyt/szar/raw/branch/main/README.md`;
+    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(rawUrl)}`;
+    const res = await fetch(proxyUrl);
+    
+    if (!res.ok) {
+      document.getElementById('readme').innerHTML = '<p>No README found.</p>';
+      return;
+    }
 
-  if (!data.content) {
-    document.getElementById('readme').innerHTML = '<p>No README found.</p>';
-    return;
+    const markdown = await res.text();
+    const html = markdown
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/gm, '<img src="$2" alt="$1">')
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.+?)\*\*/gm, '<b>$1</b>')
+      .replace(/\*(.+?)\*/gm, '<i>$1</i>')
+      .replace(/`([^`]+)`/gm, '<code>$1</code>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/gm, '<a href="$2" target="_blank">$1</a>')
+      .replace(/\n/g, '<br>');
+
+    document.getElementById('readme').innerHTML = html;
+  } catch (error) {
+    console.error('Error fetching README:', error);
+    document.getElementById('readme').innerHTML = '<p>Failed to load README.</p>';
   }
-
-  const decoded = atob(data.content.replace(/\n/g, ''));
-
-  const html = decoded
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim,
-      '<img src="$2" alt="$1">')
-    .replace(/^### (.+)$/gim, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gim, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gim, '<h1>$1</h1>')
-    .replace(/\*\*(.+?)\*\*/gim, '<b>$1</b>')
-    .replace(/(^|[^*])\*(?!\*)(.+?)\*(?!\*)/gim, '$1<i>$2</i>')
-    .replace(/`([^`]+)`/gim, '<code>$1</code>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/gim,
-      '<a href="$2" target="_blank">$1</a>')
-    .replace(/\n/g, '<br>');
-
-  document.getElementById('readme').innerHTML = html;
 }
 
-// Run
 fetchLatestJar();
-fetchTotalJarDownloads();
 fetchReadme();
 </script>
 </body>
