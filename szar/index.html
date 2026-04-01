@@ -140,7 +140,7 @@
   const BASE    = "https://gitea.tggamesyt.dev/api/v1";
   const OWNER   = "tggamesyt";
   const REPO    = "szar";
-  const GITHUB_OFFSET = 51; // downloads from old GitHub repo
+  const GITHUB_OFFSET = 51;
 
   function log(msg) {
     const el = document.getElementById('debug');
@@ -159,7 +159,6 @@
         return;
       }
 
-      // Sum all download counts across all releases and all assets
       const totalDownloads = releases.reduce((sum, release) => {
         return sum + (release.assets || []).reduce((s, a) => s + (a.download_count || 0), 0);
       }, 0) + GITHUB_OFFSET;
@@ -167,11 +166,10 @@
       document.getElementById('download-count').innerHTML =
         `⬇ <span>${totalDownloads.toLocaleString()}</span> total downloads`;
 
-      // Get the latest release's main jar (largest .jar, excludes -sources)
       const latest = releases[0];
       const jar = latest.assets
         ?.filter(a => a.name.endsWith('.jar') && !a.name.endsWith('-sources.jar'))
-        .sort((a, b) => b.size - a.size)[0]; // pick largest if multiple
+        .sort((a, b) => b.size - a.size)[0];
 
       const button = document.getElementById('download-button');
       if (!jar) {
@@ -189,10 +187,13 @@
 
   async function fetchReadme() {
     try {
-      const res = await fetch(`https://gitea.tggamesyt.dev/${OWNER}/${REPO}/raw/branch/main/README.md`);
+      // Use the API contents endpoint instead of raw — API always has CORS headers
+      const res = await fetch(`${BASE}/repos/${OWNER}/${REPO}/contents/README.md`);
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
-      const markdown = await res.text();
+      const data = await res.json();
+      // Content is base64 encoded, decode it
+      const markdown = atob(data.content.replace(/\n/g, ''));
       document.getElementById('readme').innerHTML = marked.parse(markdown);
     } catch (err) {
       document.getElementById('readme').innerHTML = '<p>Failed to load README.</p>';
