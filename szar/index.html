@@ -193,7 +193,7 @@
 
       const data = await res.json();
       // Content is base64 encoded, decode it
-      const markdown = atob(data.content.replace(/\n/g, ''));
+      const markdown = new TextDecoder('utf-8').decode(Uint8Array.from(atob(data.content.replace(/\n/g, '')), c => c.charCodeAt(0)));
       document.getElementById('readme').innerHTML = marked.parse(markdown);
     } catch (err) {
       document.getElementById('readme').innerHTML = '<p>Failed to load README.</p>';
